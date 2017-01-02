@@ -78,6 +78,27 @@ int board_early_init_f(void)
 	writel(0x002AFAAA, &gpio->gphcon);
 	writel(0x000007FF, &gpio->gphup);
 
+#ifdef CONFIG_DRIVER_DM9000
+    unsigned int oldval_gpfcon = *(volatile unsigned int *)&gpio->gpfcon;
+    unsigned int oldval_gpfup = *(volatile unsigned int *)&gpio->gpfup;
+    unsigned int oldval_extint0 = *(volatile unsigned int *)&gpio->extint0;
+    unsigned int oldval_eintmask = *(volatile unsigned int *)&gpio->eintmask;
+    unsigned int oldval_bwscon = *(volatile unsigned int *)0x48000000;
+
+     /* Set GPF7 as EINT7 */
+    *((volatile unsigned int *)&gpio->gpfcon) = oldval_gpfcon & (~(3 << 14)) | (2 << 14);
+    *((volatile unsigned int *)&gpio->gpfup) = oldval_gpfup | (1 << 7);
+    /* EINT7 High level interrupt */
+    *((volatile unsigned int *)&gpio->extint0) = (oldval_extint0 & (~(0x7 << 28))) | (0x1 << 28);
+    /* Enable EINT7 */
+    *((volatile unsigned int *)&gpio->eintmask) = oldval_eintmask & (~(1<<7));
+    /* Set GPA15 as nGCS4 */
+    *((volatile unsigned int *)&gpio->gpacon) |= 1 << 15;
+    /* DM9000 width 16, wait enable */
+    *((volatile unsigned int *)0x48000000) = oldval_bwscon & (~(0x7<<16)) | (0x5<<16);
+    *((volatile unsigned int *)0x48000014) = (1<<13) | (1<<11) | (0x6<<8) | (1<<6) | (1<<4) | (0<<2) | (0);
+#endif
+
 	return 0;
 }
 
